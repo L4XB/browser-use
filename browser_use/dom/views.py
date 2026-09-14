@@ -357,6 +357,12 @@ class EnhancedSnapshotNode:
 	"""Live value of an <input> or <textarea> (DOMSnapshot inputValue/textValue), which the value attribute misses when JS, autofill, or a framework set it."""
 	input_checked: bool | None = None
 	"""Live checked state of a checkbox or radio input (DOMSnapshot inputChecked)."""
+	input_value_present: bool | None = None
+	"""Whether the live value is non-empty, for fields whose value is redacted (#5795).
+
+	A presence bit, never the value: it lets the serializer say that a password
+	field is already filled without putting the secret anywhere it could be read.
+	``None`` means the snapshot carried no value data for this document at all."""
 
 
 # @dataclass(slots=True)

@@ -1324,6 +1324,13 @@ class DOMTreeSerializer:
 		if node.tag_name and node.tag_name.lower() in ['input', 'textarea', 'select']:
 			if is_password_field:
 				attributes_to_include.pop('value', None)
+				# The value stays out, but whether there IS one must not: without
+				# it a filled and an empty password field look identical and the
+				# agent retypes the password on every DOM refresh (#5795). The
+				# marker is derived from the live snapshot value and carries no
+				# part of it.
+				present = node.snapshot_node.input_value_present if node.snapshot_node else None
+				attributes_to_include['value-state'] = 'unknown' if present is None else 'filled' if present else 'empty'
 			# ALWAYS check AX tree - it reflects actual typed value, DOM attribute may not update
 			elif node.ax_node and node.ax_node.properties:
 				for prop in node.ax_node.properties:

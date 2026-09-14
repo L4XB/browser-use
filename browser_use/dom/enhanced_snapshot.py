@@ -118,12 +118,29 @@ def build_snapshot_lookup(
 		# Live form values live in the snapshot, not in the DOM attributes. Map
 		# snapshot index -> string once so each node lookup stays O(1).
 		input_value_by_index: dict[int, str] = {}
+		# Redacting the value also erased the only sign that the field holds one,
+		# so a filled and an empty password serialized identically and the agent
+		# typed the password again on every refresh (#5795). Keep the presence
+		# bit, which carries no part of the secret — not its content, not its
+		# length — and drop the value itself as before.
+		input_value_present_by_index: dict[int, bool] = {}
+		# Measured against CDP: an empty input is not omitted from the rare data,
+		# it is reported with the -1 empty-string sentinel. Reading that as empty
+		# is what makes the presence bit true for every field the snapshot saw;
+		# a reference that is invalid for any other reason stays unknown.
 		for key in ('inputValue', 'textValue'):
 			rare = nodes.get(key)
 			if rare:
 				for idx, string_index in zip(rare.get('index', []), rare.get('value', [])):
-					if 0 <= string_index < len(strings) and not _is_sensitive_input(strings, nodes, idx):
-						input_value_by_index[idx] = strings[string_index]
+					if string_index == -1:
+						input_value_present_by_index[idx] = False
+						continue
+					if not 0 <= string_index < len(strings):
+						continue
+					value = strings[string_index]
+					input_value_present_by_index[idx] = bool(value)
+					if not _is_sensitive_input(strings, nodes, idx):
+						input_value_by_index[idx] = value
 		input_checked_set: set[int] = set(nodes['inputChecked']['index']) if 'inputChecked' in nodes else set()
 		has_checked_data = 'inputChecked' in nodes
 
@@ -210,6 +227,7 @@ def build_snapshot_lookup(
 				paint_order=paint_order,
 				stacking_contexts=stacking_contexts,
 				input_value=input_value_by_index.get(snapshot_index),
+				input_value_present=input_value_present_by_index.get(snapshot_index),
 				input_checked=(snapshot_index in input_checked_set) if has_checked_data else None,
 			)
 
